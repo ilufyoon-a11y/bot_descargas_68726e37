@@ -3,7 +3,7 @@ from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTyp
 import yt_dlp
 import os
 
-TOKEN = "TU_TOKEN_AQUI"
+TOKEN = os.environ.get("TOKEN")
 
 async def descargar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
