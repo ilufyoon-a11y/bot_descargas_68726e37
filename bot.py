@@ -1,5 +1,8 @@
 import os
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+import threading
+from flask import Flask
+
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -8,11 +11,33 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+
 import yt_dlp
 
+# =========================
+# 🔐 TOKEN
+# =========================
 TOKEN = os.environ.get("TOKEN")
 
-# 🌸 /start bonito
+# =========================
+# 🌐 FLASK (KEEP ALIVE)
+# =========================
+app_flask = Flask(__name__)
+
+@app_flask.route('/')
+def home():
+    return "Bot activo 😏"
+
+def run_flask():
+    app_flask.run(host='0.0.0.0', port=10000)
+
+def keep_alive():
+    thread = threading.Thread(target=run_flask)
+    thread.start()
+
+# =========================
+# 🌸 /start
+# =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     texto = (
         "🌸 Hola!! 🐰✨\n\n"
@@ -21,12 +46,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Solo pega el link 💖"
     )
 
-    foto = "https://i.pinimg.com/originals/3f/26/57/3f26577ae86a98ed05fdf2e2a3d2a61d.gif"  # puedes cambiarla
+    foto = "https://i.pinimg.com/originals/3f/26/57/3f26577ae86a98ed05fdf2e2a3d2a61d.gif"
 
     await update.message.reply_photo(photo=foto, caption=texto)
 
-
-# 📩 Recibir link
+# =========================
+# 📩 RECIBIR LINK
+# =========================
 async def recibir_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = update.message.text
 
@@ -46,8 +72,9 @@ async def recibir_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(botones),
     )
 
-
-# 🎛️ Botones
+# =========================
+# 🎛️ BOTONES PRINCIPALES
+# =========================
 async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -58,20 +85,8 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("No hay link 😭")
         return
 
-    # 🎬 VIDEO
-    if query.data == "video":
-        botones_calidad = [
-            [InlineKeyboardButton("360p", callback_data="360")],
-            [InlineKeyboardButton("480p", callback_data="480")],
-        ]
-
-        await query.edit_message_text(
-            "🎬 Elige calidad:",
-            reply_markup=InlineKeyboardMarkup(botones_calidad),
-        )
-
     # 🎧 AUDIO
-    elif query.data == "audio":
+    if query.data == "audio":
         await query.edit_message_text("🎧 Descargando audio...")
 
         try:
@@ -94,8 +109,21 @@ async def botones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             await fallo(query)
 
+    # 🎬 VIDEO (elige calidad)
+    elif query.data == "video":
+        botones_calidad = [
+            [InlineKeyboardButton("360p", callback_data="360")],
+            [InlineKeyboardButton("480p", callback_data="480")],
+        ]
 
-# 🎬 DESCARGA VIDEO CON CALIDAD
+        await query.edit_message_text(
+            "🎬 Elige calidad:",
+            reply_markup=InlineKeyboardMarkup(botones_calidad),
+        )
+
+# =========================
+# 🎬 DESCARGA VIDEO
+# =========================
 async def calidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -125,8 +153,9 @@ async def calidad(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         await fallo(query)
 
-
-# 😭 MENSAJE BONITO CUANDO FALLA
+# =========================
+# 😭 ERROR BONITO
+# =========================
 async def fallo(query):
     texto = (
         "😭 nooo TT\n\n"
@@ -141,8 +170,9 @@ async def fallo(query):
         caption=texto
     )
 
-
-# 🚀 APP
+# =========================
+# 🚀 APP TELEGRAM
+# =========================
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
@@ -150,4 +180,8 @@ app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, recibir_link))
 app.add_handler(CallbackQueryHandler(botones, pattern="^(video|audio)$"))
 app.add_handler(CallbackQueryHandler(calidad, pattern="^(360|480)$"))
 
+# =========================
+# 🔥 ARRANQUE FINAL
+# =========================
+keep_alive()
 app.run_polling()
